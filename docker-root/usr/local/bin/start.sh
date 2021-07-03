@@ -15,16 +15,16 @@ fi
 [ -n "$NODANTED" ] || (while true
 do
 sleep 5
-[ -d /sys/class/net/tun0 ] && { chmod a+w /tmp ; su daemon -s /usr/sbin/danted; }
+[ -d /sys/class/net/tun0 ] && {
+	chmod a+w /tmp
+	ip rule add iif lo sport 1080 pref 1 table 2
+	su daemon -s /usr/sbin/danted
+	ip rule del iif lo sport 1080 pref 1 table 2
+}
 done
 )&
 
-# https://github.com/Hagb/docker-easyconnect/issues/20
-# https://serverfault.com/questions/302936/configuring-route-to-use-the-same-interface-for-outbound-traffic-as-that-of-inbo
-iptables -t mangle -I OUTPUT -m state --state ESTABLISHED,RELATED -j CONNMARK --restore-mark
-iptables -t mangle -I INPUT -m connmark ! --mark 0 -j CONNMARK --save-mark
-iptables -t mangle -I INPUT -m connmark --mark 1 -j MARK --set-mark 1
-iptables -t mangle -I INPUT -i eth0 -j CONNMARK --set-mark 1
+# 将路由表 main 复制到路由表 2
 (
 IFS="
 "
@@ -74,6 +74,7 @@ then
 	[ -e ~/.vnc/passwd ] || (mkdir -p ~/.vnc && (echo password | tigervncpasswd -f > ~/.vnc/passwd)) 
 	[ -n "$PASSWORD" ] && printf %s "$PASSWORD" | tigervncpasswd -f > ~/.vnc/passwd
 
+	ip rule add iif lo sport 5901 pref 1 table 2
 	tigervncserver :1 -geometry 800x600 -localhost no -passwd ~/.vnc/passwd -xstartup flwm
 	DISPLAY=:1
 
